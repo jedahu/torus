@@ -1,4 +1,4 @@
-== Torus SPEC (0.0.2)
+== Torus SPEC (0.0.3)
 
 (Shamelessly cribbing from the Ring Spec since 2011.)
 
