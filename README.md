@@ -3,9 +3,11 @@
 Torus is a Clojurescript web application library inspired by
 [ring](https://github.com/mmcgrana/ring).
 
-Like ring, there is a SPEC.md file at the root of the torus repository
-which describes the vanilla request and response interfaces. More information
-can be found in the docstrings of me.panzoo.{torus,middleware/interfaces}.
+Like ring, there is a SPEC.md file at the root of the torus repository which
+describes the vanilla request and response interfaces. More information can be
+found in the docstrings of me.panzoo.{torus,middleware/interfaces}, most of
+which are reproduced in more readable form in the
+[wiki](https://github.com/jedahu/torus/wiki/Torus-documentation).
 
 
 ## Usage
