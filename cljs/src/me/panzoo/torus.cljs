@@ -1,10 +1,10 @@
+;; Torus is a Clojurescript web application library inspired by
+;; Ring (https://github.com/mmcgrana/ring).
+;;   
+;; Like Ring, there is a SPEC file at the root of the torus repository
+;; which describes the vanilla request and response interfaces. See
+;; README.md for a short code synopsis and usage information.
 (ns me.panzoo.torus
-  "Torus is a Clojurescript web application library inspired by
-  Ring (https://github.com/mmcgrana/ring).
-  
-  Like Ring, there is a SPEC file at the root of the torus repository
-  which describes the vanilla request and response interfaces. See
-  README.md for a short code synopsis and usage information."
   (:require
     [me.panzoo.torus.util :as util]
     [cljs.reader :as reader]
