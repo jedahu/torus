@@ -12,7 +12,7 @@ more readable form in the
 
 ## Usage
 
-Add `[me.panzoo/torus "0.0.2"]` to `:dependencies` in your Leiningen project.
+Add `[me.panzoo/torus "0.0.3"]` to `:dependencies` in your Leiningen project.
 
 
 ## Synopsis
