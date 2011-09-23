@@ -44,6 +44,9 @@
 (defn- call-handler [handler req opts]
   (let [resp (handler (assoc req :location (location-map)))
         html (. js/document documentElement)]
+    (assert (:id resp))
+    (assert (:body resp))
+    (assert (:title resp))
     (when-not (= (:id resp) (.getAttribute html (:torus-response-id opts)))
       (replace-head ((:head resp)) (:torus-class opts))
       (replace-body ((:body resp)))

@@ -69,7 +69,7 @@ A Clojurescript map. The keys of the map are processed in the order they
 apper below.
 
 :id
-  (Optional, String)
+  (Required, String)
   The response id. Used to determine whether to process the response.  The
   previous response id is stored at the root element (html) in the attribute
   defined by the :torus-response-id option to me.panzoo.torus/init. This

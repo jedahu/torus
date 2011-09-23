@@ -9,7 +9,9 @@
   handler.
 
   iface must be a no-argument function that returns a map containing the
-  following keys, of which :body is mandatory.
+  following keys, of which :id and :body are mandatory.
+
+  :id string
 
   :body nodes
 
@@ -19,10 +21,11 @@
 
   :content-id string
 
-  The :body, :head, and :callback keys correspond to those in the handler spec.
-  handler :body and :head keys will be overwritten by those proveded by the
-  interface (or set to nil). Interface and handler callbacks will be sequenced,
-  with the interface callback first.  Otherwise, handler keys will replace
+  The :id, :body, :head, and :callback keys correspond to those in the handler
+  spec.  handler :body and :head keys will be overwritten by those proveded by
+  the interface (or set to nil). Interface and handler callbacks will be
+  sequenced, with the interface callback first. The handler :id will be
+  appended to the interface :id. In all other cases, handler keys will replace
   interface keys of the same name.
 
   If :content-id is non-nil, the wrapped handler must have a :content key
@@ -30,19 +33,26 @@
   :replace-ids map contains a :content-id -> :content mapping."
   (fn [req]
     (let [hr (handler req)
-          ir (iface)
-          cb (when (and (:callback hr) (:callback ir))
-               (let [ch (:callback hr)
-                     ci (:callback ir)]
-                 (fn [] (ci) (ch))))
-          resp (assoc hr
-                      :body (:body ir)
-                      :head (:head ir))
-          resp (merge ir resp)
-          resp (if cb
-                 (assoc resp :callback cb)
-                 resp)
-          resp (if (:content-id ir)
-                 (assoc-in resp [:replace-ids (:content-id ir)] (:content hr))
-                 resp)]
-      resp)))
+          ir (iface)]
+      (assert (:id hr))
+      (assert (:id ir))
+      (assert (:body ir))
+      (let [id (str (:id ir) (:id hr))
+            cb (when (and (:callback hr) (:callback ir))
+                 (let [ch (:callback hr)
+                       ci (:callback ir)]
+                   (fn [] (ci) (ch))))
+            resp (assoc hr
+                        :body (:body ir)
+                        :head (:head ir))
+            resp (merge ir resp)
+            resp (if cb
+                   (assoc resp :callback cb)
+                   resp)
+            resp (if (:content-id ir)
+                   (do
+                     (assert (:content hr))
+                     (assoc-in resp [:replace-ids (:content-id ir)]
+                               (:content hr)))
+                   resp)]
+        (assoc resp :id id)))))
