@@ -1,0 +1,98 @@
+== Torus SPEC (0.0.2)
+
+(Shamelessly cribbing from the Ring Spec since 2011.)
+
+Torus is definied in terms of handlers, middleware, request maps, and response
+maps.
+
+
+== Handlers
+
+Handlers are Clojurescript functions that take a request map and return a
+response map. Handlers should be referentially transparent.
+
+
+== Middleware
+
+Higher order functions that take one or more handlers and configuration options
+and return a new handler with the desired compound behaviour.
+
+
+== Request Map
+
+A Clojurescript map with the following keys:
+
+:location
+  (Required, IPersistentMap)
+  A map that always contains the following keys (from js/location):
+
+  :hash
+    (String)
+    URL hash tag.
+
+  :host
+    (String)
+    Server hostname and port.
+
+  :hostname
+    (String)
+    Server domain name or IP address.
+
+  :href
+    (String)
+    Complete URL.
+
+  :origin
+    (String)
+    Server protocol and host.
+
+  :pathname
+    (String)
+    Everything between the :origin and :hash.
+
+  :port
+    (Integer)
+    Server port number.
+
+  :protocol
+    (Keyword)
+    :https or :http
+
+:history-state (optional)
+  (Optional, Object)
+  The state object from js/history.
+
+
+== Response Map
+
+A Clojurescript map. The keys of the map are processed in the order they
+apper below.
+
+:id
+  (Optional, String)
+  The response id. Used to determine whether to process the response.  The
+  previous response id is stored at the root element (html) in the attribute
+  defined by the :torus-response-id option to me.panzoo.torus/init. This
+  attribute is checked before the rest of the response is processed. If the
+  attribute is equal to the response id, nothing futher is done.
+
+:head
+  (Optional, () -> ISeq)
+  A thunk returning a sequence of DOM nodes. These nodes are appended
+  to the document head and the class defined by the :torus-class option to
+  me.panzoo.torus/init is added to them. Before this happens the previous
+  children of head which have that class are removed.
+
+:body
+  (Required, () -> HTMLBodyElement)
+  A thunk returning a body node. Used to replace the document body.
+
+:title
+  (Required, String)
+  The new document title.
+
+:replace-id
+  (Optional, IPersistentMap)
+  A map of String keys to thunks returning DOM node values. For each key-value
+  pair, the DOM node whose id matches the key is replaced with the value node,
+  whose id is then changed to match they key.
