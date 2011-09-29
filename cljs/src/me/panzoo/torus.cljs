@@ -13,47 +13,102 @@
     [goog.events :as events]
     [goog.events.EventType :as event-type]))
 
-(defn- location-map []
-  {:hash (.hash js/location)
-   :host (. js/location host)
-   :hostname (. js/location hostname)
-   :href (. js/location href)
-   :origin (. js/location origin)
-   :pathname (. js/location pathname)
-   :port (js/parseInt (. js/location port))
-   :protocol (if (= "https:" (. js/location protocol)) :https :http)})
+(def ^:private current-response (atom {}))
+(def ^:private current-handler (atom (constantly nil)))
+(def ^:private current-opts (atom nil))
 
-(defn- replace-head [nodes class]
+(defn- separate [f s]
+  [(filter f s) (filter (complement f) s)])
+
+(defn- call-remove [resp]
+  (when-let [remfn (:onremove resp)]
+    (remfn (dissoc resp :nested :onremove))))
+
+(defn- call-callback [resp]
+  (when-let [cbfn (:callback resp)]
+    (cbfn (dissoc resp :nested :callback :onremove))))
+
+(defn- location-map []
+  (let [bl (fn [s] (if (seq s) s nil))]
+    {:hash (bl (.hash js/location))
+     :host (bl (. js/location host))
+     :hostname (bl (. js/location hostname))
+     :href (bl (. js/location href))
+     :origin (bl (. js/location origin))
+     :pathname (bl (. js/location pathname))
+     :port (js/parseInt (. js/location port))
+     :protocol (if (= "https:" (. js/location protocol)) :https :http)}))
+
+(defn- replace-head [new-nodes current-nodes]
   (let [head (. js/document head)]
-    (doseq [n (util/domseq->seq (. head children))]
-      (when (classes/has n class)
-        (dom/removeNode n)))
-    (doseq [n nodes]
-      (dom/appendChild head n)
-      (classes/add n class))))
+    (doseq [n current-nodes]
+      (dom/removeNode n))
+    (doseq [n new-nodes]
+      (dom/appendChild head n))))
 
 (defn- replace-body [new-body]
-  (dom/replaceNode new-body body))
+  (let [new-node (if (= "body" (. new-body tagName))
+                   new-body
+                   (dom/createDom "body" nil new-body))]
+    (set! (. js/document body) new-node)))
 
-(defn- replace-ids [id-map]
-  (doseq [[id thunk] id-map]
-    (let [node (thunk)]
-      (dom/replaceNode node (dom/getElement id))
-      (.setAttribute node "id" id))))
+(defn- process-nested [nested]
+  (let [process (fn [node-id]
+                  (let [{:keys [id content callback] :as resp}
+                        (get nested node-id)]
+                    (assert id)
+                    (assert node-id)
+                    (assert content)
+                    (when-let [old-node (dom/getElement node-id)]
+                      (assert content)
+                      (assert @content)
+                      (dom/replaceNode @content old-node)
+                      (.setAttribute @content "id" node-id)
+                      resp)))]
+    (reduce #(assoc %1 %2 (process %2)) {} (keys nested))))
+
+(defn- set-response-defaults [{:keys [title head] :as resp} location]
+  (.log js/console "title" title)
+  (.log js/console "hostname" (:hostname location))
+  (.log js/console "pathname" (:pathname location))
+  (assoc resp
+         :title (or title (:hostname location) (:pathname location))
+         :head (or head (delay []))))
 
 (defn- call-handler [handler req opts]
-  (let [resp (handler (assoc req :location (location-map)))
+  (let [location (location-map)
+        {:keys [id title head content nested callback onremove] :as resp}
+        (set-response-defaults (handler (assoc req :location location))
+                               location)
         html (. js/document documentElement)]
-    (assert (:id resp))
-    (assert (:body resp))
-    (assert (:title resp))
-    (when-not (= (:id resp) (.getAttribute html (:torus-response-id opts)))
-      (replace-head ((:head resp)) (:torus-class opts))
-      (replace-body ((:body resp)))
-      (replace-ids (:replace-ids resp))
-      (util/set-title-text (:title resp))
-      (.setAttribute html (:torus-response-id opts) (:id resp)))
-    (when-let [cb (:callback resp)] (cb))))
+    (assert id)
+    (assert content)
+    (swap!
+      current-response
+      (fn [current]
+        (.log js/console "current" current)
+        (if (not= id (:id current))
+          (do
+            (.log js/console "not")
+            (call-remove current)
+            (util/set-title-text title)
+            (replace-head @head
+                          (when-let [h (:head current)]
+                            @h))
+            (replace-body @content)
+            (call-callback resp)
+            (assoc resp :nested (process-nested nested)))
+          (update-in
+            current [:nested]
+            (fn [old]
+              (.log js/console "yes")
+              (doseq [[id resp] old]
+                (call-remove resp)
+                (dom/replaceNode (dom/createDom
+                                   "div" (.strobj {"id" id}))
+                                 @(:content resp)))
+              (.log js/console "remove")
+              (process-nested nested))))))))
 
 (defn- click-handler [handler opts evt]
   (let [a (dom/getAncestorByTagNameAndClass
@@ -66,6 +121,10 @@
             o (when s (reader/read-string s))]
         (.pushState js/history o nil url)
         (call-handler handler {:history-state o} opts)))))
+
+(defn goto-url [url & [state]]
+  (.pushState js/history state nil url)
+  (call-handler @current-handler {:history-state state} @current-opts))
 
 (defn init
   "Initialize torus with handler and opts. handler should be
@@ -87,34 +146,24 @@
   
   Attribute to use instead of \"data-torus-state\".
   
-  :torus-class
-  
-  Class to use instead of \"torus-placed\".
-  
-  :torus-response-id
-  
-  Attribute to use instead of \"data-torus-response-id\".
-  
   :immediate-dispatch?
   
   Call handler immediately without waiting for a popstate event."
   [handler & {:as opts}]
-  (.log js/console "torus/init")
+  (reset! current-handler handler)
+  (reset! current-opts opts)
+  (.log js/console "reset")
   (events/listen
     js/window event-type/POPSTATE
     (fn [evt]
       (call-handler handler {:history-state (. evt state)} opts)))
-  (.log js/console "popstate listener")
+  (.log js/console "popstate")
   (let [opts (merge {:a-class "torus-internal"
-                     :a-state "data-torus-state"
-                     :torus-class "torus-placed"
-                     :torus-response-id "data-torus-response-id"}
-                    opts)
-        aclass (:a-class opts)
-        astate (:a-state opts)]
+                     :a-state "data-torus-state"}
+                    opts)]
     (events/listen
       (. js/document documentElement) event-type/CLICK
       (partial click-handler handler opts)))
-  (.log js/console "click listener")
+  (.log js/console "mouse")
   (when (:immediate-dispatch? opts)
     (call-handler handler {:history-state (. js/history state)} opts)))

@@ -1,6 +1,7 @@
 (ns me.panzoo.torus.util
   (:require
-    [goog.dom :as dom]))
+    [goog.dom :as dom]
+    [goog.string :as str]))
 
 (defn domseq->seq [s]
   (if (or (instance? js/NodeList s)
@@ -10,9 +11,4 @@
     (seq s)))
 
 (defn set-title-text [s]
-  (let [title (.item (dom/getElementsByTagNameAndClass "title") 0)]
-    (if title
-      (set! (. title innerHTML) (js/escape s))
-      (dom/appendChild
-        (. js/document head)
-        (dom/createDom "title" nil (dom/createTextNode (js/escape s)))))))
+  (set! (. js/document title) (str/escapeString s)))

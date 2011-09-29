@@ -70,29 +70,49 @@ apper below.
 
 :id
   (Required, String)
-  The response id. Used to determine whether to process the response.  The
-  previous response id is stored at the root element (html) in the attribute
-  defined by the :torus-response-id option to me.panzoo.torus/init. This
-  attribute is checked before the rest of the response is processed. If the
-  attribute is equal to the response id, nothing futher is done.
-
-:head
-  (Optional, () -> ISeq)
-  A thunk returning a sequence of DOM nodes. These nodes are appended
-  to the document head and the class defined by the :torus-class option to
-  me.panzoo.torus/init is added to them. Before this happens the previous
-  children of head which have that class are removed.
-
-:body
-  (Required, () -> HTMLBodyElement)
-  A thunk returning a body node. Used to replace the document body.
+  The response id. Used to determine whether to use the response :head, :body,
+  and :callback. The previous response id is stored in an atom. This value is
+  checked before the rest of the response is processed. If the stored value is
+  equal to the response id, :body, :head, and :callback are not used. In all
+  cases :nodes is still processed.
 
 :title
-  (Required, String)
-  The new document title.
+  (Optional, String)
+  The new document title. If blank, :hostname from the request :location is
+  used.
 
-:replace-id
+:head
+  (Optional, Delayed ISeq)
+  A delayed sequence of DOM nodes. These nodes are appended to the document
+  head. Before this happens the previous children of head which have that class
+  are removed.
+
+:content
+  (Required, Delayed HTMLElement)
+  A delayed node. Used to replace the document body. If the node is not a body
+  node it will be wrapped in one. Either way the document ends up with a new
+  body node, which means existing listeners are discarded.
+
+:callback
+  (Optional, Function)
+  A function that is called after :head and :body are processed. It takes one
+  argument which is a copy of the response map with :callback, :onremove, and
+  :nested removed.
+
+:onremove
+  (Optional, Function)
+  A function that is called before the content or head nodes associated with
+  this response are removed from the document. It takes the same argument as
+  the :callback function.
+
+:nested
   (Optional, IPersistentMap)
-  A map of String keys to thunks returning DOM node values. For each key-value
-  pair, the DOM node whose id matches the key is replaced with the value node,
-  whose id is then changed to match they key.
+  A map of element id strings to response maps. Each key is tested against the
+  document using document.getElementWithId(key). When there is a match the
+  corresponding response map is processed, with the following differences from
+  how the parent response map is:
+  - :head and :nested are ignored;
+  - the :content node replaces the matching document node and copies its id;
+  - the :title text sets the title attribute on the :content node
+  - the argument to the :callback and :onremove functions does not contain a
+    :head key.
