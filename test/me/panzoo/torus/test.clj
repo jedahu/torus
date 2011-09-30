@@ -39,7 +39,7 @@
         "Interface callback failed.")
 
       (is
-        (thrown? Throwable (find-it b :hr nil))
+        (not (exists? (find-it b :hr nil)))
         "Handler content for interface not present.")
 
       (is
