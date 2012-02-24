@@ -11,22 +11,24 @@
     [goog.dom :as dom]
     [goog.dom.classes :as classes]
     [goog.events :as events]
-    [goog.events.EventType :as event-type]))
+    [goog.events.EventType :as event-type]
+    [goog.net.XhrIo :as xhrio]))
 
 (def ^:private current-response (atom {}))
+(def ^:private current-head (atom []))
 (def ^:private current-handler (atom (constantly nil)))
 (def ^:private current-opts (atom nil))
 
 (defn- separate [f s]
   [(filter f s) (filter (complement f) s)])
 
-(defn- call-remove [resp]
-  (when-let [remfn (:onremove resp)]
-    (remfn (dissoc resp :nested :onremove))))
+(defn- call-uninstall [resp]
+  (when-let [f (:uninstall resp)]
+    (uninstall resp)))
 
-(defn- call-callback [resp]
-  (when-let [cbfn (:callback resp)]
-    (cbfn (dissoc resp :nested :callback :onremove))))
+(defn- call-install [resp]
+  (when-let [f (:install resp)]
+    (install resp)))
 
 (defn- location-map []
   (let [bl (fn [s] (if (seq s) s nil))]
@@ -39,76 +41,63 @@
      :port (js/parseInt (. js/location port))
      :protocol (if (= "https:" (. js/location protocol)) :https :http)}))
 
-(defn- replace-head [new-nodes current-nodes]
+(defn- replace-head [new-nodes]
   (let [head (. js/document head)]
-    (doseq [n current-nodes]
-      (dom/removeNode n))
-    (doseq [n new-nodes]
-      (dom/appendChild head n))))
+    (swap!
+      current-head
+      (fn [curr]
+        (doseq [n curr]
+          (dom/removeNode n))
+        (doseq [n new-nodes]
+          (dom/appendChild head n))
+        new-nodes))))
 
 (defn- replace-body [new-body]
-  (let [new-node (if (= "body" (. new-body tagName))
-                   new-body
-                   (dom/createDom "body" nil new-body))]
-    (set! (. js/document body) new-node)))
+  (set! (. js/document body) new-node))
 
-(defn- process-nested [nested]
-  (let [process (fn [node-id]
-                  (let [{:keys [id content callback] :as resp}
-                        (get nested node-id)]
-                    (assert id)
-                    (assert node-id)
-                    (assert content)
-                    (when-let [old-node (dom/getElement node-id)]
-                      (assert content)
-                      (assert @content)
-                      (dom/replaceNode @content old-node)
-                      (.setAttribute @content "id" node-id)
-                      resp)))]
-    (reduce #(assoc %1 %2 (process %2)) {} (keys nested))))
+(defn- gxhr [url f]
+  (xhrio/send url (fn [e]
+                    (if (.. e -target (isSuccess))
+                      (f (.. e -target (getResponseText)))
+                      (throw (js/Error. "Template fetch failed."))))))
 
-(defn- set-response-defaults [{:keys [title head] :as resp} location]
-  (.log js/console "title" title)
-  (.log js/console "hostname" (:hostname location))
-  (.log js/console "pathname" (:pathname location))
-  (assoc resp
-         :title (or title (:hostname location) (:pathname location))
-         :head (or head (delay []))))
+(defn- get-document [xhr x f]
+  (let [decorate (fn [node]
+                   {:title (aget (. node (getElementsByTagName "title")) 0)
+                    :head (aget (. node (getElementsByTagName "head")) 0)
+                    :body (aget (. node (getElementsByTagName "body")) 0)})]
+    (cond
+      (instance? js/Document x)
+      (-> (. x -documentElement) decorate f)
+
+      (instance? js/Element x)
+      (-> x decorate f)
+
+      (and (string? x)
+           (= \< (first x)))
+      (-> x dom/htmlToDocumentFragment decorate f)
+
+      (string? x)
+      ((or xhr gxhr) x #(-> % dom/htmlToDocumentFragment decorate f)))))
 
 (defn- call-handler [handler req opts]
   (let [location (location-map)
-        {:keys [id title head content nested callback onremove] :as resp}
-        (set-response-defaults (handler (assoc req :location location))
-                               location)
-        html (. js/document documentElement)]
+        {:keys [id html install uninstall] :as resp}]
     (assert id)
-    (assert content)
-    (swap!
-      current-response
-      (fn [current]
-        (.log js/console "current" current)
-        (if (not= id (:id current))
-          (do
-            (.log js/console "not")
-            (call-remove current)
-            (util/set-title-text title)
-            (replace-head @head
-                          (when-let [h (:head current)]
-                            @h))
-            (replace-body @content)
-            (call-callback resp)
-            (assoc resp :nested (process-nested nested)))
-          (update-in
-            current [:nested]
-            (fn [old]
-              (.log js/console "yes")
-              (doseq [[id resp] old]
-                (call-remove resp)
-                (dom/replaceNode (dom/createDom
-                                   "div" (.strobj {"id" id}))
-                                 @(:content resp)))
-              (.log js/console "remove")
-              (process-nested nested))))))))
+    (assert html)
+    (if (= id (:id @current-response))
+      (install resp)
+      (get-document
+        (:xhr opts) html
+        (fn [doc]
+          (swap!
+            current-response
+            (fn [current]
+              (call-uninstall current)
+              (util/set-title-text (or title (:title doc)))
+              (replace-head (:head doc))
+              (replace-body (:body doc))
+              (call-install resp))))))))
 
 (defn- click-handler [handler opts evt]
   (let [a (dom/getAncestorByTagNameAndClass
