@@ -94,8 +94,7 @@ apper below.
   request :location is used.
 
   All children of the new documents' head are appended to the current document
-  head, but not before the previous children are removed. Previous children are
-  identified by class.
+  head, but not before the children from the previous response are removed.
 
   The current document's body node is replaced by that of the new document. Note
   that this means existing listeners on 'body' are discarded.

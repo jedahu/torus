@@ -1,14 +1,14 @@
 (defproject
-  me.panzoo/torus "0.0.4"
+  torus "0.1.0-SNAPSHOT"
 
   :description "Clojurescript web application library"
 
-  :dependencies
-  [[org.clojure/clojure "1.3.0"]
-   [clj-webdriver "0.2.14"]
-   [cljs-compiler "0.0.3"]]
+  :plugins
+  [[lein-cst "0.2.1"]
+   [menodora "0.1.2"]]
 
   :exclusions
   [org.apache.ant/ant]
 
-  :source-path "cljs/src")
+  :cst
+  {:suites []})
