@@ -78,7 +78,18 @@
 
                  "/server-hello"
                  {:id "server hello"
-                  :html "/template/hello-world.html"}))))
+                  :html "/template/hello-world.html"}
+
+                 "/missing-template"
+                 {:id "missing"
+                  :html "/template/not-found.html"}))))
+    ;:post (do
+    ;        (events/listenOnce
+    ;          (:event-target @tmap) te/INSTALLED
+    ;          (fn [evt]
+    ;            (swap! tmap t/stop)
+    ;            (<done>)))
+    ;        (t/change-path @tmap "/"))
     :post (do
             (swap! tmap t/stop)
             (. js/history pushState nil nil "/"))
@@ -89,6 +100,21 @@
           (expect eq "Hello World" (. js/document -title))
           (expect eq "Hello World" (.. js/document -body -innerText))
           (<done>)))
-      (t/change-path @tmap "/server-hello"))))
+      (t/change-path @tmap "/server-hello"))
+    (should* "handle 404s gracefully"
+      (events/listenOnce
+        (:event-target @tmap) te/INSTALLED
+        (fn [evt]
+          (expect eq "INSTALLED" "event should not be dispatched")
+          (events/removeAll {:event-target @tmap})
+          (<done>)))
+      (events/listenOnce
+        (:event-target @tmap) te/NOT-FOUND
+        (fn [evt]
+          (expect truthy "NOT-FOUND event should be dispatched")
+          (expect eq "server hello" (:id @t/current-response))
+          (events/removeAll {:event-target @tmap})
+          (<done>)))
+        (t/change-path @tmap "/missing-template"))))
 
 ;;. vim: set lispwords+=defsuite,describe,should,should*,expect:

@@ -56,10 +56,15 @@
   (set! (. js/document -body) response-body))
 
 (defn- gxhr [url f]
-  (xhrio/send url (fn [e]
-                    (if (.. e -target (isSuccess))
-                      (f (.. e -target getResponseText))
-                      (throw (js/Error. "Template fetch failed."))))))
+  (xhrio/send
+    url (fn [e]
+          (let [t (. e -target)]
+            (f
+              (if (. t isSuccess)
+                (. t getResponseText)
+                {:status (. t getStatus)
+                 :code (. t getLastErrorCode)
+                 :msg (. t getLastError)}))))))
 
 (defn- get-document [xhr x f]
   (let [decorate (fn [node]
@@ -93,7 +98,13 @@
       (-> x str->html decorate f)
 
       (string? x)
-      ((or xhr gxhr) x #(-> % str->html decorate f)))))
+      ((or xhr gxhr)
+         x (fn [resp]
+             (if (map? resp)
+               (f (util/debug
+                    "Error fetching template:" x
+                    (print-str resp)))
+               (-> resp str->html decorate f)))))))
 
 (defn call-handler [tmap req]
   (let [location (location-map)
@@ -103,22 +114,25 @@
     (assert id)
     (assert html)
     (if (= id (:id @current-response))
-      (install resp)
+      (call-install resp)
       (get-document
         (:xhr-fn tmap) html
         (fn [doc]
-          (swap!
-            current-response
-            (fn [current]
-              (call-uninstall current)
-              (util/set-title-text (or title
-                                       (:title doc)
-                                       (:hostname location)))
-              (replace-head (:head doc))
-              (replace-body (:body doc))
-              (call-install resp)
-              resp))
-          (. (:event-target tmap) dispatchEvent te/INSTALLED))))))
+          (if-not doc
+            (. (:event-target tmap) dispatchEvent te/NOT-FOUND)
+            (do
+              (swap!
+                current-response
+                (fn [current]
+                  (call-uninstall current)
+                  (util/set-title-text (or title
+                                           (:title doc)
+                                           (:hostname location)))
+                  (replace-head (:head doc))
+                  (replace-body (:body doc))
+                  (call-install resp)
+                  resp))
+              (. (:event-target tmap) dispatchEvent te/INSTALLED))))))))
 
 (defn change-path [tmap path & [state]]
   (. js/history pushState (pr-str state) nil path)
@@ -189,6 +203,7 @@
 
 (defn stop
   [{:keys [event-target listener-keys]}]
+  (events/removeAll event-target)
   (. event-target dispose)
   (doseq [k listener-keys]
     (events/unlistenByKey k)))

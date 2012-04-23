@@ -12,3 +12,7 @@
 
 (defn set-title-text [s]
   (set! (. js/document -title) (str/escapeString s)))
+
+(defn debug [& args]
+  (when js/console
+    (.. js/console -log (apply js/console (apply array args)))))
