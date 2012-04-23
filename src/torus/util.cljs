@@ -3,7 +3,7 @@
     [goog.dom :as dom]
     [goog.string :as str]))
 
-(defn domseq->seq [s]
+(defn seq<- [s]
   (if (or (instance? js/NodeList s)
           (instance? js/HTMLCollection s))
     (for [x (range (. s -length))]

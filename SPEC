@@ -105,11 +105,9 @@ apper below.
 
 :install
   (Optional, Function)
-  A function that is called after the new document is processed. It takes a
-  single argument which is the response map.
+  A no-argument function that is called after the new document is processed.
 
 :uninstall
   (Optional, Function)
-  A function that is called before the body or head nodes associated with this
-  response are removed from the document. It takes the same argument as the
-  :install function.
+  A no-arg function that is called before the body or head nodes associated
+  with this response are removed from the document.
