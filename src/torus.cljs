@@ -58,7 +58,7 @@
 (defn- gxhr [url f]
   (xhrio/send url (fn [e]
                     (if (.. e -target (isSuccess))
-                      (f (.. e -target (getResponseText)))
+                      (f (.. e -target getResponseText))
                       (throw (js/Error. "Template fetch failed."))))))
 
 (defn- get-document [xhr x f]
@@ -76,7 +76,11 @@
                     :body (aget (. node
                                    getElementsByTagName
                                    "body")
-                                0)})]
+                                0)})
+        str->html (fn [s]
+                    (let [html (. js/document createElement "html")]
+                      (set! (. html -innerHTML) s)
+                      html))]
     (cond
       (instance? js/Document x)
       (-> (. x -documentElement) decorate f)
@@ -86,12 +90,10 @@
 
       (and (string? x)
            (= \< (first x)))
-      (let [html (. js/document createElement "html")]
-        (set! (. html -innerHTML) x)
-        (-> html decorate f))
+      (-> x str->html decorate f)
 
       (string? x)
-      ((or xhr gxhr) x #(-> % dom/htmlToDocumentFragment decorate f)))))
+      ((or xhr gxhr) x #(-> % str->html decorate f)))))
 
 (defn call-handler [tmap req]
   (let [location (location-map)
@@ -114,8 +116,9 @@
                                        (:hostname location)))
               (replace-head (:head doc))
               (replace-body (:body doc))
-              (call-install resp)))))))
-  (. (:event-target tmap) dispatchEvent te/INSTALLED))
+              (call-install resp)
+              resp))
+          (. (:event-target tmap) dispatchEvent te/INSTALLED))))))
 
 (defn change-path [tmap path & [state]]
   (. js/history pushState (pr-str state) nil path)
