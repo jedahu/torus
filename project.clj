@@ -19,7 +19,9 @@
   :cst
   {:suites [torus.test.client/core-tests]
    :runners
-   {:console-browser {:cljs menodora.runner.console/run-suites-browser
+   {:console-phantom {:cljs menodora.runner.console/run-suites-browser
                       :proc torus.test.server/static-server
-                      :browser :phantom}}
-   :runner :console-browser})
+                      :browser :phantom}
+    :console-browser {:cljs menodora.runner.console/run-suites-browser
+                      :proc torus.test.server/static-server}}
+   :runner :console-phantom})

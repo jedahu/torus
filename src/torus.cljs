@@ -93,39 +93,47 @@
       (string? x)
       ((or xhr gxhr) x #(-> % dom/htmlToDocumentFragment decorate f)))))
 
-(defn call-handler [handler req opts]
+(defn call-handler [tmap req]
   (let [location (location-map)
 
         {:keys [id html title install uninstall] :as resp}
-        (handler (assoc req :location location))]
+        ((:handler tmap) (assoc req :location location))]
     (assert id)
     (assert html)
     (if (= id (:id @current-response))
       (install resp)
       (get-document
-        (:xhr opts) html
+        (:xhr-fn tmap) html
         (fn [doc]
           (swap!
             current-response
             (fn [current]
               (call-uninstall current)
-              (util/set-title-text (or title (:title doc)))
+              (util/set-title-text (or title
+                                       (:title doc)
+                                       (:hostname location)))
               (replace-head (:head doc))
               (replace-body (:body doc))
-              (call-install resp))))))
-    (. (:event-target opts) dispatchEvent te/INSTALLED)))
+              (call-install resp))))))) 
+  (. (:event-target tmap) dispatchEvent te/INSTALLED))
 
-(defn click-handler [handler opts evt]
-  (let [a (dom/getAncestorByTagNameAndClass
-            (. evt -target) "a")]
-    (when-let [url (and a
-                        (classes/has a (:a-class opts))
-                        (. a getAttribute "href"))]
-      (. evt preventDefault)
-      (let [s (. a getAttribute (:a-state opts))
-            o (when s (reader/read-string s))]
-        (. js/history pushState o nil url)
-        (call-handler handler {:history-state o} opts)))))
+(defn change-path [tmap path & [state]]
+  (. js/history pushState (pr-str state) nil path)
+  (call-handler tmap {:history-state state}))
+
+(defn click-handler [tmap]
+  (fn [evt]
+    (let [a (dom/getAncestorByTagNameAndClass
+              (. evt -target) "a")]
+      (when-let [url (and a
+                          (classes/has a (:a-class tmap))
+                          (. a getAttribute "href"))]
+        (. evt preventDefault)
+        (change-path tmap )
+        (let [s (. a getAttribute (:a-state tmap))
+              o (when s (reader/read-string s))]
+          (. js/history pushState s nil url)
+          (call-handler tmap {:history-state o}))))))
 
 (defn start 
   "Initialize torus with handler and opts. handler should be
@@ -151,24 +159,30 @@
   
   :immediate-dispatch?
   
-  Call handler immediately without waiting for a popstate event."
+  Call handler immediately without waiting for a popstate event.
+  
+  :xhr-fn
+  
+  The function to use for XHR. Takes a url and a callback."
   [handler & {:as opts}]
   (let [target (goog.events.EventTarget.)
         opts (merge {:a-class "torus-internal"
                      :a-state "data-torus-state"
+                     :handler handler
                      :event-target target}
                     opts)]
     (when (:immediate-dispatch? opts)
-      (call-handler handler {:history-state (. js/history -state)} opts)) 
-    {:event-target target 
-     :listener-keys
-     [(events/listen
-        js/window event-type/POPSTATE
-        (fn [evt]
-          (call-handler handler {:history-state (. evt -state)} opts)))
-      (events/listen
-        (. js/document -documentElement) event-type/CLICK
-        (partial click-handler handler opts))]}))
+      (call-handler opts {:history-state (. js/history -state)})) 
+    (assoc
+      opts
+      :listener-keys
+      [(events/listen
+         js/window event-type/POPSTATE
+         (fn [evt]
+           (call-handler opts {:history-state (. evt -state)})))
+       (events/listen
+         (. js/document -documentElement) event-type/CLICK
+         (click-handler opts))])))
 
 (defn stop
   [{:keys [event-target listener-keys]}]
