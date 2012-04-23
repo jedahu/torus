@@ -24,11 +24,11 @@
 
 (defn- call-uninstall [resp]
   (when-let [f (:uninstall resp)]
-    (uninstall)))
+    (f)))
 
 (defn- call-install [resp]
   (when-let [f (:install resp)]
-    (install)))
+    (f)))
 
 (defn- location-map []
   (let [bl (fn [s] (if (seq s) s nil))]
@@ -114,7 +114,9 @@
     (assert id)
     (assert html)
     (if (= id (:id @current-response))
-      (call-install resp)
+      (do
+        (call-install resp)
+        (. (:event-target tmap) dispatchEvent te/INSTALLED))
       (get-document
         (:xhr-fn tmap) html
         (fn [doc]
