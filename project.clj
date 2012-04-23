@@ -8,7 +8,7 @@
 
   :dev-dependencies
   [[cst "0.2.3"]
-   [menodora "0.1.3"]] 
+   [menodora "0.1.3"]]
 
   :plugins
   [[lein-cst "0.2.3"]]

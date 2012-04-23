@@ -1,6 +1,6 @@
 ;; Torus is a Clojurescript web application library inspired by
 ;; Ring (https://github.com/mmcgrana/ring).
-;;   
+;;
 ;; Like Ring, there is a SPEC file at the root of the torus repository
 ;; which describes the vanilla request and response interfaces. See
 ;; README.md for a short code synopsis and usage information.
@@ -49,7 +49,7 @@
         (doseq [n curr]
           (dom/removeNode n))
         (doseq [n nodes]
-          (dom/appendChild head n)) 
+          (dom/appendChild head n))
         nodes))))
 
 (defn- replace-body [response-body]
@@ -114,7 +114,7 @@
                                        (:hostname location)))
               (replace-head (:head doc))
               (replace-body (:body doc))
-              (call-install resp))))))) 
+              (call-install resp)))))))
   (. (:event-target tmap) dispatchEvent te/INSTALLED))
 
 (defn change-path [tmap path & [state]]
@@ -135,34 +135,34 @@
           (. js/history pushState s nil url)
           (call-handler tmap {:history-state o}))))))
 
-(defn start 
+(defn start
   "Initialize torus with handler and opts. handler should be
   referentially transparent.
-  
+
   Begins listening to all click events on a.torus-internal
   elements and calls history.pushState() with a.href as url and
   a.data-torus-state as state (read by read-string).
-  
+
   Calls handler on each history popstate event.
 
   Returns a vector of popstate and click listener keys.
-  
+
   Takes a key-value map of options:
-  
+
   :a-class string
-  
+
   Class to use instead of \"torus-internal\".
-  
+
   :a-state
-  
+
   Attribute to use instead of \"data-torus-state\".
-  
+
   :immediate-dispatch?
-  
+
   Call handler immediately without waiting for a popstate event.
-  
+
   :xhr-fn
-  
+
   The function to use for XHR. Takes a url and a callback."
   [handler & {:as opts}]
   (let [target (goog.events.EventTarget.)
@@ -172,7 +172,7 @@
                      :event-target target}
                     opts)]
     (when (:immediate-dispatch? opts)
-      (call-handler opts {:history-state (. js/history -state)})) 
+      (call-handler opts {:history-state (. js/history -state)}))
     (assoc
       opts
       :listener-keys

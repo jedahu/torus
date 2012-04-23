@@ -14,7 +14,7 @@
   (describe "simple operation"
     :let [torus (atom nil)]
     :pre (reset!
-              torus 
+              torus
               (t/start
                 (fn [req]
                   (condp = (-> req :location :pathname)
@@ -31,7 +31,7 @@
                     {:id "no-title"
                      :html (str "<html><head></head>"
                                 "<body>Titleless</body></html>")}
-                    
+
                     "/with-resp-title"
                     {:id "resp-title"
                      :html (str "<head><title>Not seen</title></head>")
@@ -45,8 +45,8 @@
       (events/listenOnce
         (:event-target @torus) te/INSTALLED
         (fn [evt]
-          (expect eq "Simple" (. js/document -title)) 
-          (expect eq "Hello" (.. js/document -body -innerText)) 
+          (expect eq "Simple" (. js/document -title))
+          (expect eq "Hello" (.. js/document -body -innerText))
           (<done>)))
       (t/change-path @torus "/with-title"))
     (should* "add hostname title if none given"
