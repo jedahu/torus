@@ -97,8 +97,7 @@
             (<done>)))
         (t/change-path tmap "/next")))
     (should* "follow links"
-      (let [content (atom nil)
-            tmap (start-torus
+      (let [tmap (start-torus
                    "/one"
                    {:id "first"
                     :html (str "<body>"
@@ -121,7 +120,29 @@
                   (<done>))))
             (event-test/fireClickEvent
               (. js/document getElementById "next"))))
-        (t/change-path tmap "/one"))))
+        (t/change-path tmap "/one")))
+    (should* "go back in history"
+      (let [trail (atom [])
+            tmap (start-torus
+                   "/alpha"
+                   {:id "a"
+                    :html "<body></body>"
+                    :install #(swap! trail conj :a)}
+                   "/beta"
+                   {:id "b"
+                    :html "<body></body>"
+                    :install #(swap! trail conj :b)})]
+        (t/change-path tmap "/alpha")
+        (t/change-path tmap "/beta")
+        (events/listenOnce
+          (:event-target tmap) te/INSTALLED
+          (fn [evt]
+            (expect eq "a" (:id @t/current-response))
+            (expect eq [:a :b :a] @trail)
+            (t/stop tmap)
+            (<done>)))
+        (. js/history back))))
+
 
   (describe "server operation"
     :after (. js/history pushState nil nil "/")
