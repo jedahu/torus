@@ -1,5 +1,5 @@
 (defproject
-  torus "0.1.0-SNAPSHOT"
+  torus "0.1.0"
 
   :description "Clojurescript web application library"
 
