@@ -4,6 +4,7 @@
     [torus.events :as te]
     [goog.events :as events]
     [goog.events.EventType :as event-type]
+    [goog.testing.events :as event-test]
     [menodora.core :as mc])
   (:use
     [menodora.predicates :only (eq truthy)])
@@ -92,8 +93,35 @@
           (:event-target tmap) te/INSTALLED
           (fn [evt]
             (expect eq "Value" @content)
+            (t/stop tmap)
             (<done>)))
-        (t/change-path tmap "/next"))))
+        (t/change-path tmap "/next")))
+    (should* "follow links"
+      (let [content (atom nil)
+            tmap (start-torus
+                   "/one"
+                   {:id "first"
+                    :html (str "<body>"
+                               "<a id='next' "
+                               "href='/two' class='torus-internal'>"
+                               "next</a></body>")}
+                   "/two"
+                   {:id "second"
+                    :html "<body>2</body>"})]
+        (events/listenOnce
+          (:event-target tmap) te/INSTALLED
+          (fn [evt]
+            (events/removeAll (:event-target tmap))
+            (events/listen
+              (:event-target tmap) te/INSTALLED
+              (fn [evt]
+                (when (not= "first" (:id @t/current-response))
+                  (expect eq "second" (:id @t/current-response))
+                  (t/stop tmap)
+                  (<done>))))
+            (event-test/fireClickEvent
+              (. js/document getElementById "next"))))
+        (t/change-path tmap "/one"))))
 
   (describe "server operation"
     :after (. js/history pushState nil nil "/")
@@ -139,7 +167,6 @@
             (expect eq "Hello World" (.. js/document -body -innerText))
             (t/stop tmap)
             (<done>)))
-        (t/change-path tmap "/server-hello")))
-    ))
+        (t/change-path tmap "/server-hello")))))
 
 ;;. vim: set lispwords+=defsuite,describe,should,should*,expect:
