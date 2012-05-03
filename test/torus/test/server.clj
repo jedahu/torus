@@ -15,4 +15,4 @@
     "/template/hello-world.html" hello-world-html
     {:status 404}))
 
-(def static-server #(cst/serve-cljs % :handler #'static-handler))
+(def static-server #(cst/serve-cljs % {:handler #'static-handler}))
